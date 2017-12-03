@@ -1,0 +1,9 @@
+dn: olcDatabase={0}mdb,olcOverlay={1}pcache,olcDatabase={1}mdb,cn=config
+objectClass: olcMdbConfig
+objectClass: olcPcacheDatabase
+olcDatabase: {0}mdb
+olcDbDirectory: /cache
+olcDbIndex: objectClass eq
+olcDbIndex: cn,sn,uid,mail pres,eq,sub
+olcDbIndex: pcacheQueryID eq
+olcAccess: to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break

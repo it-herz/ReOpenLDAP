@@ -1,0 +1,9 @@
+dn: olcDatabase={2}mdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: {2}mdb
+olcDbDirectory: /opt/reopenldap/var/accesslog
+olcSuffix: cn=accesslog
+olcRootDN: $ROOT_DN
+olcDbIndex: default eq
+olcDbIndex: entryCSN,objectClass,reqEnd,reqResult,reqStart

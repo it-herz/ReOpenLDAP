@@ -1,0 +1,1 @@
+olcSyncRepl: rid=$RID provider=ldap://$HOST binddn="cn=admin,cn=config" bindmethod=simple credentials=$CONFIG_PASSWORD searchbase="cn=config" type=refreshAndPersist retry="60 +" timeout=1

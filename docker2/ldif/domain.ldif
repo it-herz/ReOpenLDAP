@@ -1,0 +1,4 @@
+dn: $LDAP_SUFFIX
+dc: $FPDOMAIN
+objectclass: top
+objectclass: domain

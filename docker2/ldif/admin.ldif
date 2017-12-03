@@ -1,0 +1,6 @@
+dn: $ROOT_DN
+cn: $FROOTDN
+objectclass: person
+objectclass: top
+sn: Administrator
+userPassword: $PASSWORD

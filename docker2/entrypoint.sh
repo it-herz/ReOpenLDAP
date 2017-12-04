@@ -117,7 +117,24 @@ then
   cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
 
+  #RefInt Configuration
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/refint.ldif
+
+  #memberof overlay
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/memberof.ldif
+
+  #accesslog overlay
+  cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
+
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
+
+  #cache
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
+
   sleep 1
+
   kill $PID
 fi
 
@@ -170,25 +187,6 @@ do
   fi
 done
 
-#RefInt Configuration
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/refint.ldif
-
-#memberof overlay
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/memberof.ldif
-
-#chain overlay
-#ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/chain.ldif
-
-#accesslog overlay
-cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
-
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
-
-#cache
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
-
 #Modify LDAPs
 echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
 echo "changetype: modify" >>/tmp/access.ldif
@@ -224,7 +222,6 @@ do
   echo "Index created for $INDEX"
 done
 IFS=$OLD_IFS
-
 
 kill $PID
 echo "Running"

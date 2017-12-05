@@ -138,12 +138,11 @@ then
   kill $PID
 fi
 
-/opt/reopenldap/sbin/slapd -c rid=001 -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d &
-#switch to mirror mode
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
-
+/opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d &
 PID=$!
 sleep 1
+#switch to mirror mode
+ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
 #Convert additional schemas
 for EXTSCHEMA in `ls -1 /opt/schemas/*.schema`

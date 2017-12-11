@@ -73,8 +73,18 @@ then
   sleep 1
 
   #register overlays
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
+  if [ "$ENABLE_CACHE" == "1" ]
+  then
+     echo "olcModuleLoad: pcache" >>/opt/modules.ldif
+  fi
+
+  if [ "$ENABLE_ACCESSLOG" == "1" ]
+  then
+     echo "olcModuleLoad: accesslog" >>/opt/modules.ldif
+  fi
+
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
   #Syncrepl for data
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
@@ -124,14 +134,20 @@ then
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/memberof.ldif
 
   #accesslog overlay
-  cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
+  if [ "$ENABLE_ACCESSLOG" == "1" ]
+  then
+    cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
 
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
+  fi
 
+  if [ "$ENABLE_CACHE" == "1" ]
+  then
   #cache
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
+  fi
 
   sleep 1
 
@@ -144,17 +160,29 @@ sleep 1
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
+if [ "$BOOTSTRAP" == "1" ]
+then
 #Convert additional schemas
-for EXTSCHEMA in `ls -1 /opt/schemas/*.schema`
-do
+  for EXTSCHEMA in `ls -1 /opt/schemas/*.schema`
+  do
 #  ES=${EXTSCHEMA#*-}
-  echo "include $EXTSCHEMA" >/tmp/schemas.conf
-  echo "Converting schema $EXTSCHEMA"
-  echo 'runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"'
-  runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"
-done
+    echo "include $EXTSCHEMA" >/tmp/schemas.conf
+    echo "Converting schema $EXTSCHEMA"
+    echo 'runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"'
+    runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"
+  done
 
-cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
+  cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
+
+  export FPDOMAIN=herzen
+  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+
+  export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
+  export FROOTDN=admin
+  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+fi
 
 #Register modules
 
@@ -200,15 +228,6 @@ then
 fi
 echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break" >>/tmp/access.ldif
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
-
-export FPDOMAIN=herzen
-cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
-
-export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
-export FROOTDN=admin
-cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
 
 #Generate index
 OLD_IFS=$IFS

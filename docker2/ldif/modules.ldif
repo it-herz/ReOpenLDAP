@@ -6,5 +6,3 @@ olcModuleLoad: {0}back_mdb
 olcModuleLoad: {1}memberof
 olcModuleLoad: {2}refint
 olcModuleLoad: {3}syncprov
-olcModuleLoad: {4}pcache
-olcModuleLoad: {5}accesslog

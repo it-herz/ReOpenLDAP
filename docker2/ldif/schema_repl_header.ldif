@@ -1,3 +1,6 @@
 dn: olcDatabase={0}config,cn=config
 changetype: modify
+add: olcLimits
+olcLimits: dn.exact="cn=admin,cn=config" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited
+-
 add: olcSyncrepl

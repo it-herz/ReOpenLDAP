@@ -70,7 +70,7 @@ then
 
   /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d &
   PID=$!
-  sleep 1
+  sleep 3
 
   # add domain admin dn
   export FPDOMAIN=herzen
@@ -104,7 +104,7 @@ then
 
   OLD_IFS="$IFS"
   IFS=";"
-  cp /opt/schema_repl_db_header.ldif /tmp/schema_repl_db.ldif
+  cat /opt/schema_repl_db_header.ldif | envsubst >/tmp/schema_repl_db.ldif
   for REPLHOST in $REPL_HOSTS
   do
     export RID=`printf "%03d\n" $rid`
@@ -124,7 +124,7 @@ then
 
   OLD_IFS="$IFS"
   IFS=";"
-  cp /opt/schema_repl_header.ldif /tmp/schema_repl.ldif
+  cat /opt/schema_repl_header.ldif | envsubst >/tmp/schema_repl.ldif
   for REPLHOST in $REPL_HOSTS
   do
     export RID=`printf "%03d\n" $rid`
@@ -167,6 +167,8 @@ fi
 /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d &
 PID=$!
 sleep 1
+
+
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
@@ -241,6 +243,15 @@ do
   echo "Index created for $INDEX"
 done
 IFS=$OLD_IFS
+export FPDOMAIN=herzen
+cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+
+export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
+export FROOTDN=admin
+cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+sleep 1
 
 kill $PID
 echo "Running"

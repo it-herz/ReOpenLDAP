@@ -72,6 +72,16 @@ then
   PID=$!
   sleep 1
 
+  # add domain admin dn
+  export FPDOMAIN=herzen
+  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+
+  export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
+  export FROOTDN=admin
+  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+
   #register overlays
 
   if [ "$ENABLE_CACHE" == "1" ]
@@ -83,7 +93,7 @@ then
   then
      echo "olcModuleLoad: accesslog" >>/opt/modules.ldif
   fi
-
+  
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
   #Syncrepl for data
@@ -173,15 +183,6 @@ then
   done
 
   cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
-
-  export FPDOMAIN=herzen
-  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
-
-  export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
-  export FROOTDN=admin
-  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
 fi
 
 #Register modules

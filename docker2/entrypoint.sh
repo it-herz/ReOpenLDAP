@@ -41,8 +41,7 @@ then
 # Setup config database
   echo "database config" >/tmp/slapd.conf
   echo 'rootdn "cn=admin,cn=config"' >>/tmp/slapd.conf
-  ENC_PASSWORD="`slappasswd -h {ssha} -s $CONFIG_PASSWORD`"
-  echo "rootpw $ENC_PASSWORD" >>/tmp/slapd.conf
+  echo "rootpw $CONFIG_PASSWORD" >>/tmp/slapd.conf
   echo "access to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break" >>/tmp/slapd.conf
 
   runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/slapd.conf -F $CONFIG_DIR"
@@ -51,9 +50,7 @@ then
   sed -i "s~^suffix.*$~suffix \"$LDAP_SUFFIX\"~g" $CONFIG_FILE
   sed -i "s~^rootdn.*$~rootdn \"$ROOT_DN\"~g" $CONFIG_FILE
 
-  ENC_PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
-
-  sed -i "s~^rootpw.*$~rootpw $ENC_PASSWORD~g" $CONFIG_FILE
+  sed -i "s~^rootpw.*$~rootpw $ROOT_PASSWORD~g" $CONFIG_FILE
 
   echo "access to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break" >>$CONFIG_FILE
 
@@ -217,6 +214,21 @@ do
   fi
 done
 
+echo "dn: olcDatabase{-1}frontend,cn=config" >/tmp/limit.ldif
+echo "changetype: modify" >>/tmp/limit.ldif
+echo "replace: olcSizeLimit" >>/tmp/limit.ldif
+echo "olcSizeLimit: -1" >>/tmp/limit.ldif
+ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
+
+if [ "$ENABLE_ACCESSLOG" == "1" ]
+then
+  echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
+  echo "changetype: modify" >>/tmp/limital.ldif
+  echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
+  echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
+  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
+fi
+
 #Modify LDAPs
 echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
 echo "changetype: modify" >>/tmp/access.ldif
@@ -243,14 +255,17 @@ do
   echo "Index created for $INDEX"
 done
 IFS=$OLD_IFS
-export FPDOMAIN=herzen
-cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+if [ "$BOOTSTRAP" == "1" ]
+then
+  export FPDOMAIN=herzen
+  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
 
-export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
-export FROOTDN=admin
-cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+  export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
+  export FROOTDN=admin
+  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+fi
 sleep 1
 
 kill $PID

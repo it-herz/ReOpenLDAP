@@ -214,7 +214,13 @@ do
   fi
 done
 
-echo "dn: olcDatabase{-1}frontend,cn=config" >/tmp/limit.ldif
+echo "dn: olcDatabase={-1}frontend,cn=config" >/tmp/limit.ldif
+echo "changetype: modify" >>/tmp/limit.ldif
+echo "replace: olcSizeLimit" >>/tmp/limit.ldif
+echo "olcSizeLimit: -1" >>/tmp/limit.ldif
+ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
+
+echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limit.ldif
 echo "changetype: modify" >>/tmp/limit.ldif
 echo "replace: olcSizeLimit" >>/tmp/limit.ldif
 echo "olcSizeLimit: -1" >>/tmp/limit.ldif

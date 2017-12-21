@@ -276,4 +276,8 @@ sleep 1
 
 kill $PID
 echo "Running"
+if [ "$REINDEX" == "1" ]
+then
+  /opt/reopenldap/sbin/slapindex
+fi
 /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d

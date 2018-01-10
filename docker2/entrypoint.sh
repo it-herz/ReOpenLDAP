@@ -81,12 +81,12 @@ then
 
   #register overlays
 
-  if [ "$ENABLE_CACHE" == "1" ]
+  if [ "$ENABLE_CACHE" == "1" && "$MODE" != "REPLICA" ]
   then
      echo "olcModuleLoad: pcache" >>/opt/modules.ldif
   fi
 
-  if [ "$ENABLE_ACCESSLOG" == "1" ]
+  if [ "$ENABLE_ACCESSLOG" == "1" && "$MODE" != "REPLICA" ]
   then
      echo "olcModuleLoad: accesslog" >>/opt/modules.ldif
   fi
@@ -134,6 +134,9 @@ then
   cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
 
+  if [ "$MODE" != "REPLICA" ]
+  then
+
   #RefInt Configuration
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/refint.ldif
 
@@ -155,6 +158,7 @@ then
     ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
     ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
   fi
+  fi
 
   sleep 1
 
@@ -169,7 +173,7 @@ sleep 1
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-if [ "$BOOTSTRAP" == "1" ]
+if [ "$MODE" == "BOOTSTRAP" ]
 then
 #Convert additional schemas
   for EXTSCHEMA in `ls -1 /opt/schemas/*.schema`
@@ -203,6 +207,8 @@ ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
 cat /opt/maxsize.ldif | envsubst >/tmp/maxsize.ldif
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/maxsize.ldif
 
+if [ "$MODE" != "REPLICA" ]
+then
 IFS=","
 #Add additional schemas
 for SCHEMA in $SCHEMAS
@@ -225,8 +231,9 @@ echo "changetype: modify" >>/tmp/limit.ldif
 echo "replace: olcSizeLimit" >>/tmp/limit.ldif
 echo "olcSizeLimit: -1" >>/tmp/limit.ldif
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
+fi
 
-if [ "$ENABLE_ACCESSLOG" == "1" ]
+if [ "$ENABLE_ACCESSLOG" == "1" && "$MODE" != "REPLICA" ]
 then
   echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
   echo "changetype: modify" >>/tmp/limital.ldif
@@ -236,6 +243,8 @@ then
 fi
 
 #Modify LDAPs
+if [ "$MODE" != "REPLICA" ]
+then
 echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
 echo "changetype: modify" >>/tmp/access.ldif
 echo "replace: olcAccess" >>/tmp/access.ldif
@@ -261,7 +270,9 @@ do
   echo "Index created for $INDEX"
 done
 IFS=$OLD_IFS
-if [ "$BOOTSTRAP" == "1" ]
+fi
+
+if [ "$MODE" == "BOOTSTRAP" ]
 then
   export FPDOMAIN=herzen
   cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
@@ -276,7 +287,7 @@ sleep 1
 
 kill $PID
 echo "Running"
-if [ "$REINDEX" == "1" ]
+if [ "$REINDEX" == "1" && "$MODE" != "REPLICA" ]
 then
   echo "Reindexing"
   /opt/reopenldap/sbin/slapindex -v

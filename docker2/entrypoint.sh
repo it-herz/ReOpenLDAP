@@ -81,12 +81,12 @@ then
 
   #register overlays
 
-  if [ "$ENABLE_CACHE" == "1" && "$MODE" != "REPLICA" ]
+  if [ "$ENABLE_CACHE" == "1" ] && [ "$MODE" != "REPLICA" ]
   then
      echo "olcModuleLoad: pcache" >>/opt/modules.ldif
   fi
 
-  if [ "$ENABLE_ACCESSLOG" == "1" && "$MODE" != "REPLICA" ]
+  if [ "$ENABLE_ACCESSLOG" == "1" ] && [ "$MODE" != "REPLICA" ]
   then
      echo "olcModuleLoad: accesslog" >>/opt/modules.ldif
   fi
@@ -233,7 +233,7 @@ echo "olcSizeLimit: -1" >>/tmp/limit.ldif
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
 fi
 
-if [ "$ENABLE_ACCESSLOG" == "1" && "$MODE" != "REPLICA" ]
+if [ "$ENABLE_ACCESSLOG" == "1" ] && [ "$MODE" != "REPLICA" ]
 then
   echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
   echo "changetype: modify" >>/tmp/limital.ldif
@@ -287,7 +287,7 @@ sleep 1
 
 kill $PID
 echo "Running"
-if [ "$REINDEX" == "1" && "$MODE" != "REPLICA" ]
+if [ "$REINDEX" == "1" ] && [ "$MODE" != "REPLICA" ]
 then
   echo "Reindexing"
   /opt/reopenldap/sbin/slapindex -v

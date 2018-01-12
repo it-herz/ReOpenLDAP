@@ -1,1 +1,1 @@
-olcSyncRepl: {0}rid=$RID provider=ldap://$HOST binddn="$ROOT_DN" bindmethod=simple credentials="$ROOT_PASSWORD" searchbase="$LDAP_SUFFIX" type=refreshAndPersist retry="60 +" timeout=1
+olcSyncRepl: {0}rid=$RID provider=ldap://$HOST binddn="uid=replicator,$LDAP_SUFFIX" bindmethod=simple credentials="$REPLICATOR_PASSWORD" searchbase="$LDAP_SUFFIX" type=refreshAndPersist retry="60 +" timeout=1

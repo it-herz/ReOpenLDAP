@@ -59,7 +59,7 @@ then
   echo "Initializing domain"
   /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -f $CONFIG_FILE &
   PID=$!
-  sleep 1
+  sleep 3
   kill $PID
   sleep 1
 
@@ -67,14 +67,13 @@ then
 
   /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d $LDAP_LOG_LEVEL -F /opt/reopenldap/etc/slapd.d &
   PID=$!
-  sleep 3
+  sleep 5
 
   # add domain admin dn
   export FPDOMAIN=herzen
   cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
 
-  export PASSWORD="`slappasswd -h {ssha} -s $ROOT_PASSWORD`"
   export FROOTDN=admin
   cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif

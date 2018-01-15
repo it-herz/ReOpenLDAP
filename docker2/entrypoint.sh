@@ -184,17 +184,6 @@ then
   cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
 fi
 
-export FROOTDN=admin
-cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
-  
-echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
-echo "objectclass: account" >>/tmp/replicator.ldif
-echo "objectclass: simpleSecurityObject" >>/tmp/replicator.ldif
-echo "objectclass: top" >>/tmp/replicator.ldif
-echo "uid: replicator" >>/tmp/replicator.ldif
-echo "userpassword: $REPLICATOR_PASSWORD" >>/tmp/replicator.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
 #Register modules
 
 #Add TLS configuration
@@ -225,6 +214,18 @@ do
   fi
 done
 
+export FROOTDN=admin
+cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+  
+echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
+echo "objectclass: account" >>/tmp/replicator.ldif
+echo "objectclass: simpleSecurityObject" >>/tmp/replicator.ldif
+echo "objectclass: top" >>/tmp/replicator.ldif
+echo "uid: replicator" >>/tmp/replicator.ldif
+echo "userpassword: $REPLICATOR_PASSWORD" >>/tmp/replicator.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+
 if [ "$MODE" != "REPLICA" ]
 then
 echo "dn: olcDatabase={-1}frontend,cn=config" >/tmp/limit.ldif
@@ -250,7 +251,6 @@ then
 fi
 
 #Modify LDAPs
-if [ "$MODE" != "REPLICA" ]
 then
 echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
 echo "changetype: modify" >>/tmp/access.ldif
@@ -263,7 +263,7 @@ then
     echo "olcAccess: {0}$ACCESS" >>/tmp/access.ldif
   done
 fi
-echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break" >>/tmp/access.ldif
+echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by dn.exact=uid=replicator,$LDAP_SUFFIX manage by by * break" >>/tmp/access.ldif
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
 
 #Generate index
@@ -277,7 +277,6 @@ do
   echo "Index created for $INDEX"
 done
 IFS=$OLD_IFS
-fi
 
 if [ "$MODE" == "BOOTSTRAP" ]
 then

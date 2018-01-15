@@ -70,10 +70,6 @@ then
   sleep 5
 
   # add domain admin dn
-  export FPDOMAIN=herzen
-  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
-
   #register overlays
 
   if [ "$ENABLE_CACHE" == "1" ] && [ "$MODE" != "REPLICA" ]
@@ -214,16 +210,18 @@ do
   fi
 done
 
+export FPDOMAIN=herzen
+cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+
 export FROOTDN=admin
 cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
-  
-echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
-echo "objectclass: account" >>/tmp/replicator.ldif
-echo "objectclass: simpleSecurityObject" >>/tmp/replicator.ldif
-echo "objectclass: top" >>/tmp/replicator.ldif
-echo "uid: replicator" >>/tmp/replicator.ldif
-echo "userpassword: $REPLICATOR_PASSWORD" >>/tmp/replicator.ldif
+
+cat /opt/services.ldif | envsubst >/tmp/services.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
+
+cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
 
 if [ "$MODE" != "REPLICA" ]
@@ -251,7 +249,6 @@ then
 fi
 
 #Modify LDAPs
-then
 echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
 echo "changetype: modify" >>/tmp/access.ldif
 echo "replace: olcAccess" >>/tmp/access.ldif
@@ -263,7 +260,7 @@ then
     echo "olcAccess: {0}$ACCESS" >>/tmp/access.ldif
   done
 fi
-echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by dn.exact=uid=replicator,$LDAP_SUFFIX manage by by * break" >>/tmp/access.ldif
+echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by dn.exact=uid=replicator,$LDAP_SUFFIX manage by * break" >>/tmp/access.ldif
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
 
 #Generate index

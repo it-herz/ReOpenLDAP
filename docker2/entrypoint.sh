@@ -74,9 +74,6 @@ then
   cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
 
-  export FROOTDN=admin
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/admin.ldif
-
   #register overlays
 
   if [ "$ENABLE_CACHE" == "1" ] && [ "$MODE" != "REPLICA" ]
@@ -88,14 +85,7 @@ then
   then
      echo "olcModuleLoad: accesslog" >>/opt/modules.ldif
   fi
-  
-  echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
-  echo "objectclass: account" >>/tmp/replicator.ldif
-  echo "objectclass: simpleSecurityObject" >>/tmp/replicator.ldif
-  echo "objectclass: top" >>/tmp/replicator.ldif
-  echo "uid: replicator" >>/tmp/replicator.ldif
-  echo "userpassword: $REPLICATOR_PASSWORD" >>/tmp/replicator.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+
   
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
@@ -194,6 +184,20 @@ then
   cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
 fi
 
+
+
+export FROOTDN=admin
+cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+
+  
+echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
+echo "objectclass: account" >>/tmp/replicator.ldif
+echo "objectclass: simpleSecurityObject" >>/tmp/replicator.ldif
+echo "objectclass: top" >>/tmp/replicator.ldif
+echo "uid: replicator" >>/tmp/replicator.ldif
+echo "userpassword: $REPLICATOR_PASSWORD" >>/tmp/replicator.ldif
+ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
 #Register modules
 
 #Add TLS configuration

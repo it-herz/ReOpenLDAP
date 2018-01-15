@@ -184,12 +184,9 @@ then
   cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
 fi
 
-
-
 export FROOTDN=admin
 cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
-
   
 echo "dn: uid=replicator,$LDAP_SUFFIX" >/tmp/replicator.ldif
 echo "objectclass: account" >>/tmp/replicator.ldif
@@ -217,8 +214,6 @@ ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
 cat /opt/maxsize.ldif | envsubst >/tmp/maxsize.ldif
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/maxsize.ldif
 
-if [ "$MODE" != "REPLICA" ]
-then
 IFS=","
 #Add additional schemas
 for SCHEMA in $SCHEMAS
@@ -230,6 +225,8 @@ do
   fi
 done
 
+if [ "$MODE" != "REPLICA" ]
+then
 echo "dn: olcDatabase={-1}frontend,cn=config" >/tmp/limit.ldif
 echo "changetype: modify" >>/tmp/limit.ldif
 echo "replace: olcSizeLimit" >>/tmp/limit.ldif

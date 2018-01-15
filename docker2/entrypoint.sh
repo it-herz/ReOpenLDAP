@@ -169,7 +169,7 @@ sleep 1
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-if [ "$MODE" == "BOOTSTRAP" ]
+if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
 then
 #Convert additional schemas
   for EXTSCHEMA in `ls -1 /opt/schemas/*.schema`

@@ -1,6 +1,6 @@
 dn: olcDatabase={1}mdb,cn=config
 changetype: modify
 add: olcLimits
-olcLimits: dn.exact="$ROOT_DN" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited
+olcLimits: dn.exact="uid=replicator,$LDAP_SUFFIX" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited
 -
 add: olcSyncrepl

@@ -75,8 +75,7 @@ then
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
 
   export FROOTDN=admin
-  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/admin.ldif
 
   #register overlays
 

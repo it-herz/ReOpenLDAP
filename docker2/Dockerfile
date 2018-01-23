@@ -12,7 +12,6 @@ RUN cd /opt/ && apt-get -y update && apt install -y wget build-essential && \
 
 RUN apt-get -y update \
 	  && LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       ldap-utils \
        libsasl2-modules \
        libsasl2-modules-db \
        libsasl2-modules-gssapi-mit \
@@ -32,7 +31,7 @@ RUN apt-get update -qq && apt-get install -yqq --no-install-recommends gettext-b
     make -j ${NPROC} && make install && cd /opt/reopenldap && rm -rf /opt/reopenldap.source &&\
     apt-get remove -qq -y --purge automake build-essential libssl-dev libsasl2-dev git \
     groff imagemagick cpp gcc cpp libtool libmagic1 &&\
-    apt-get autoremove -y -qq --purge && apt-get clean && chown ldap:ldap -R /opt/reopenldap
+    apt-get autoremove -y -qq --purge && apt-get clean && chown ldap:ldap -R /opt/reopenldap && apt-get purge libldap*
 
 ENV MANPATH /opt/reopenldap/share/man:/usr/share/man
 

@@ -23,13 +23,11 @@ RUN apt-get -y update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-ADD ldap_dirs.patch /tmp
-
 RUN apt-get update -qq && apt-get install -yqq --no-install-recommends gettext-base \
     git automake uuid-dev bc libelf-dev pkg-config libssl-dev libsasl2-dev libdb5.3-dev strace \
     groff file libltdl-dev libltdl7 libmagic1 libtool libkrb5-dev man ca-certificates libperl-dev libsodium-dev &&\
     git clone https://github.com/ReOpen/ReOpenLDAP.git /opt/reopenldap.source &&\
-    cd /opt/reopenldap.source && mv /tmp/ldap_dirs.patch . && git checkout v1.1.6 && patch -p0 <ldap_dirs.patch && ./bootstrap.sh && \
+    cd /opt/reopenldap.source && git checkout stable/1.1 && ./bootstrap.sh && \
     ./configure --enable-ipv6 --enable-local --enable-contrib=yes --enable-dynacl=yes --enable-aci=yes --enable-spasswd=yes --enable-rewrite=yes --enable-slapi --enable-mdb=yes --enable-overlays=yes && \
     make -j ${NPROC} && make install && cd /opt/reopenldap && rm -rf /opt/reopenldap.source &&\
     apt-get remove -qq -y --purge automake build-essential libssl-dev libsasl2-dev git \

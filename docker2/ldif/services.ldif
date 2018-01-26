@@ -1,0 +1,5 @@
+dn: cn=services,dc=herzen,dc=spb,dc=ru
+cn: services
+gidnumber: 500
+objectclass: posixGroup
+objectclass: top

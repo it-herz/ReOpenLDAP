@@ -3,4 +3,4 @@ cn: $FROOTDN
 objectclass: person
 objectclass: top
 sn: Administrator
-userPassword: $ROOT_PASSWORD
+userPassword: $ENC_ROOT_PASSWORD

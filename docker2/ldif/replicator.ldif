@@ -1,0 +1,15 @@
+dn: uid=replicator,$LDAP_SUFFIX
+cn: replicator
+gidnumber: 500
+givenname: Replicator
+homedirectory: /home/users/replicator
+loginshell: /bin/sh
+objectclass: inetOrgPerson
+objectclass: posixAccount
+objectclass: top
+sn: Replicator
+uid: replicator
+uidnumber: 1000
+userpassword: $ENC_REPLICATOR_PASSWORD
+
+

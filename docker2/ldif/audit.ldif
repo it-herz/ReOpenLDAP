@@ -1,0 +1,4 @@
+dn: olcOverlay=auditlog
+objectClass: olcOverlayConfig
+objectClass: olcAuditlogConfig
+olcAuditlogFile: /opt/reopenldap/var/audit.log

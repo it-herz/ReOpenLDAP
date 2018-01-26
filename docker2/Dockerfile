@@ -54,6 +54,4 @@ EXPOSE 389 636
 
 VOLUME /opt/reopenldap/var/reopenldap-data /opt/reopenldap/etc/slapd.d /cache /opt/reopenldap/var/accesslog
 
-ADD ldapdump.ldif /
-
 CMD /opt/entrypoint.sh

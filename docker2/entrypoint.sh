@@ -81,13 +81,6 @@ then
   # Register modules
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
-
-  #ServerSideSort
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/sssvlv.ldif
-
-  #Audit log
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/audit.ldif
-
   #Syncrepl for data
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
 
@@ -140,6 +133,12 @@ then
     #memberof overlay
     ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/memberof.ldif
 
+    #ServerSideSort
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/sssvlv.ldif
+
+    #Audit log
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/audit.ldif
+
     if [ "$ENABLE_ACCESSLOG" == "1" ]
     then
       cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
@@ -175,7 +174,7 @@ sleep 1
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
+if [ "$MODE" == "BOOTSTRAP" ]
 then
 #Convert additional schemas
   for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
@@ -204,9 +203,6 @@ done
 
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
 
-# Override maxsize for database
-#cat /opt/maxsize.ldif | envsubst >/tmp/maxsize.ldif
-#ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/maxsize.ldif
 
 IFS=","
 #Add additional schemas
@@ -224,19 +220,22 @@ do
 done
 
 #Build directory stub
-export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
-cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
+if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
+then
+  export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
+  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
 
-export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
-cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
+  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
+  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
 
-cat /opt/services.ldif | envsubst >/tmp/services.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
+  cat /opt/services.ldif | envsubst >/tmp/services.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
 
-cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+  cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+fi
 
 if [ "$MODE" != "REPLICA" ]
 then
@@ -252,6 +251,13 @@ then
   echo "replace: olcSizeLimit" >>/tmp/limit.ldif
   echo "olcSizeLimit: -1" >>/tmp/limit.ldif
   ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
+
+# redefine max size
+  echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limital.ldif
+  echo "changetype: modify" >>/tmp/limital.ldif
+  echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
+  echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
+  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
 fi
 
 if [ "$ENABLE_ACCESSLOG" == "1" ] && [ "$MODE" != "REPLICA" ]
@@ -285,16 +291,19 @@ echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=exte
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
 
 #Generate index
-OLD_IFS=$IFS
-IFS=";"
-for IV in $INDEXES
-do
-  export INDEX=$IV
-  cat /opt/index.ldif | envsubst >/tmp/index.ldif
-  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/index.ldif
-  echo "Index created for $INDEX"
-done
-IFS=$OLD_IFS
+if [ "$MODE" != "REPLICA" ]
+then
+  OLD_IFS=$IFS
+  IFS=";"
+  for IV in $INDEXES
+  do
+    export INDEX=$IV
+    cat /opt/index.ldif | envsubst >/tmp/index.ldif
+    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/index.ldif
+    echo "Index created for $INDEX"
+  done
+  IFS=$OLD_IFS
+fi
 
 if [ "$MODE" == "BOOTSTRAP" ]
 then

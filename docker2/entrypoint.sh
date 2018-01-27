@@ -38,9 +38,8 @@ then
 # Setup domain database
   sed -i "s~^suffix.*$~suffix \"$LDAP_SUFFIX\"~g" $CONFIG_FILE
   sed -i "s~^rootdn.*$~rootdn \"$ROOT_DN\"~g" $CONFIG_FILE
-  sed -i "/^*index.*$/d" $CONFIG_FILE
-
   sed -i "s~^rootpw.*$~rootpw $ENC_ROOT_PASSWORD~g" $CONFIG_FILE
+  sed -i "/^index.*$/d" $CONFIG_FILE
   echo "access to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break" >>$CONFIG_FILE
 
 # Initializing domain

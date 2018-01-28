@@ -69,7 +69,7 @@ then
   fi
 
   # Register accesslog overlay (if needed)
-  if [ "$ENABLE_ACCESSLOG" == "1" ] && [ "$MODE" != "REPLICA" ]
+  if [ "$ENABLE_ACCESSLOG" == "1" ]
   then
      # Setup accesslog directory
 
@@ -112,12 +112,12 @@ then
       ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
       ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
     fi
+  fi
 
-    if [ "$ENABLE_MONITOR" == "1" ]
-    then
-      cat /opt/monitoring.ldif | envsubst >/tmp/monitoring.ldif
-      ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/monitoring.ldif
-    fi
+  if [ "$ENABLE_MONITOR" == "1" ]
+  then
+    cat /opt/monitoring.ldif | envsubst >/tmp/monitoring.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/monitoring.ldif
   fi
 
   sleep 1
@@ -164,7 +164,7 @@ do
 #  cat $CONFIG_BASEDIR/schema/$P
 #  ldapadd -Y EXTERNAL -H ldapi:/// -f $CONFIG_BASEDIR/schema/$P
 done
-cp -R /tmp/cn=config $CONFIG_DIR/
+cp -R /tmp/cn=config/cn=schema/*.ldif $CONFIG_DIR/cn=config/cn=schema
 
 #Register modules
 
@@ -180,11 +180,6 @@ do
 done
 
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
-
-echo "DIR"
-ls -la $CONFIG_DIR/schema
-echo "BASEDIR"
-ls -la $CONFIG_BASEDIR/schema
 
 IFS=","
 #Add additional schemas
@@ -249,7 +244,7 @@ then
   ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
 fi
 
-if [ "$ENABLE_ACCESSLOG" == "1" ] && [ "$MODE" != "REPLICA" ]
+if [ "$ENABLE_ACCESSLOG" == "1" ] 
 then
 # If define access log - redefine max size
   echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
@@ -364,10 +359,10 @@ kill $PID
 
 echo "Running"
 
-if [ ! -z "$INITFILE" ]
-then
-  cat $INITFILE | slapadd -v -F $CONFIG_DIR
-fi
+#if [ ! -z "$INITFILE" ]
+#then
+#  cat $INITFILE | slapadd -v -F $CONFIG_DIR
+#fi
 
 if [ "$REINDEX" == "1" ] && [ "$MODE" != "REPLICA" ]
 then

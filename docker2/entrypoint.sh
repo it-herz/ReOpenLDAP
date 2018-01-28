@@ -81,7 +81,6 @@ then
   # Register modules
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
-
   if [ "$MODE" != "REPLICA" ]
     then
 
@@ -102,8 +101,6 @@ then
       cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
       ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
       ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
-
-      cat /opt/accesslog_acl.ldif | envsubst >/tmp/accesslog_acl.ldif
     fi
 
     if [ "$ENABLE_CACHE" == "1" ]
@@ -125,244 +122,215 @@ then
   kill $PID
 fi
 
-/opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d "$LDAP_LOG_LEVEL" -F "$CONFIG_DIR" &
-PID=$!
-sleep 1
-
-#switch to mirror mode
-ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
-
-if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
+if [ "$MODE" != "RAW" ]
 then
-#Convert additional schemas
-  for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
-  do
-    EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
-    cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
-    echo "include /tmp/$EXTSCHEMA_NAME" >/tmp/schemas.conf
-    echo "Converting schema $EXTSCHEMA_NAME"
-    cat /tmp/schemas.conf
-    set +x
-    runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
-    set -x
-  done
 
-#  cp /opt/schemas/*.ldif $CONFIG_DIR/schema/
-fi
+# Reconfiguration in normal node
+  /opt/reopenldap/sbin/slapd -h "ldap://$HOSTNAME ldaps://$HOSTNAME ldapi:///" -u ldap -g ldap -d "$LDAP_LOG_LEVEL" -F "$CONFIG_DIR" &
+  PID=$!
+  sleep 1
 
-cp -R $CONFIG_BASEDIR/schema/ $CONFIG_DIR/
+  #switch to mirror mode
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-ls -la /tmp/
-ls -la /tmp/cn=config/cn=schema
-for A in `ls -1 /tmp/cn=config/cn=schema`
-do
-  echo $A
-  P=`echo $A | sed 's~cn={0}\(.*\)~\1~ig'`
-  cat /tmp/cn=config/cn=schema/$A | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/\1,cn=schema,cn=config/' >$CONFIG_DIR/schema/$P
-#  echo "================="
-#  echo $P
-#  cat $CONFIG_BASEDIR/schema/$P
-#  ldapadd -Y EXTERNAL -H ldapi:/// -f $CONFIG_BASEDIR/schema/$P
-done
-cp -R /tmp/cn=config/cn=schema/*.ldif $CONFIG_DIR/cn=config/cn=schema
-
-#Register modules
-
-#Add TLS configuration
-cat /opt/tls.ldif | envsubst >/tmp/tls.ldif
-IFS=";"
-declare -i id
-id=1
-for REPLHOST in $REPL_HOSTS
-do
-  echo "olcServerID: $id ldap://$REPLHOST" >>/tmp/tls.ldif
-  id=id+1
-done
-
-ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
-
-IFS=","
-#Add additional schemas
-#if [ "$MODE" != "REPLICA" ]
-#then
-for SCHEMA in $SCHEMAS
-do
-  echo "=============================================================="
-  echo "Processing schema $SCHEMA"
-  echo "=============================================================="
-  
-  if [ -f $CONFIG_DIR/schema/$SCHEMA.ldif ]
+  if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
   then
-    cat $CONFIG_DIR/schema/$SCHEMA.ldif
-    ldapadd -c -H ldapi:// -Y EXTERNAL -f $CONFIG_DIR/schema/$SCHEMA.ldif
-    echo "Schema $SCHEMA is registered"
+#Convert additional schemas
+    for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
+    do
+      EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
+      cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
+      echo "include /tmp/$EXTSCHEMA_NAME" >/tmp/schemas.conf
+      echo "Converting schema $EXTSCHEMA_NAME"
+      cat /tmp/schemas.conf
+      runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
+    done
+
   fi
-done
-#fi
 
-chmod 777 -R $CONFIG_DIR/cn=config/cn=schema
+  cp -R $CONFIG_BASEDIR/schema/ $CONFIG_DIR/
 
-#Build directory stub
-#if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
-#then
-#  export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
-#  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
-#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
-
-#  export PASSWORD="$ENC_ROOT_PASSWORD"
-#  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
-#  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
-#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
-
-#  cat /opt/services.ldif | envsubst >/tmp/services.ldif
-#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
-
-#  cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
-#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
-#fi
-
-if [ "$MODE" != "REPLICA" ]
-then
-#Override search size limit to unlimited by default
-  echo "dn: olcDatabase={-1}frontend,cn=config" >/tmp/limit.ldif
-  echo "changetype: modify" >>/tmp/limit.ldif
-  echo "replace: olcSizeLimit" >>/tmp/limit.ldif
-  echo "olcSizeLimit: -1" >>/tmp/limit.ldif
-  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
-
-  echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limit.ldif
-  echo "changetype: modify" >>/tmp/limit.ldif
-  echo "replace: olcSizeLimit" >>/tmp/limit.ldif
-  echo "olcSizeLimit: -1" >>/tmp/limit.ldif
-  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
-
-# redefine max size
-  echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limital.ldif
-  echo "changetype: modify" >>/tmp/limital.ldif
-  echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
-  echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
-  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
-fi
-
-if [ "$ENABLE_ACCESSLOG" == "1" ] 
-then
-# If define access log - redefine max size
-  echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
-  echo "changetype: modify" >>/tmp/limital.ldif
-  echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
-  echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
-  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
-fi
-
-#Modify ACL
-echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
-echo "changetype: modify" >>/tmp/access.ldif
-echo "replace: olcAccess" >>/tmp/access.ldif
-IFS=";"
-if [ ! -z "$ACL" ]
-then
-  for ACCESS in $ACL
+  for A in `ls -1 /tmp/cn=config/cn=schema`
   do
-    echo "olcAccess: {0}$ACCESS" >>/tmp/access.ldif
+    P=`echo $A | sed 's~cn={0}\(.*\)~\1~ig'`
+    cat /tmp/cn=config/cn=schema/$A | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/\1,cn=schema,cn=config/' >$CONFIG_DIR/schema/$P
   done
-fi
-if [ "$ENABLE_ACCESSLOG" == "1" ]
-then
-  cat /tmp/accesslog_acl.ldif >>/tmp/access.ldif
-fi
+  cp -R /tmp/cn=config/cn=schema/*.ldif $CONFIG_DIR/cn=config/cn=schema
 
-echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by dn.exact=uid=replicator,$LDAP_SUFFIX manage by * break" >>/tmp/access.ldif
-ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
+  #Register modules
 
-#Generate index
-#if [ "$MODE" != "REPLICA" ]
-#then
-  OLD_IFS=$IFS
+  #Add TLS configuration
+  cat /opt/tls.ldif | envsubst >/tmp/tls.ldif
   IFS=";"
-  for IV in $INDEXES
-  do
-    export INDEX=$IV
-    cat /opt/index.ldif | envsubst >/tmp/index.ldif
-    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/index.ldif
-    echo "Index created for $INDEX"
-  done
-  IFS=$OLD_IFS
-#fi
-
-#Build directory stub
-if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
-then
-  export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
-  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
-
-  export PASSWORD="$ENC_ROOT_PASSWORD"
-  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
-  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
-
-  cat /opt/services.ldif | envsubst >/tmp/services.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
-
-  cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
-fi
-
-
-# Apply replication
-  #Syncrepl for data
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
-
-  # Build servers list and rid records
-  declare -i rid
-  rid=1
-
-  OLD_IFS="$IFS"
-  IFS=";"
-  cat /opt/schema_repl_db_header.ldif | envsubst >/tmp/schema_repl_db.ldif
+  declare -i id
+  id=1
   for REPLHOST in $REPL_HOSTS
   do
-    export RID=`printf "%03d\n" $rid`
-    export HOST=$REPLHOST
-    cat /opt/schema_repl_db_data.ldif | envsubst >>/tmp/schema_repl_db.ldif
-    rid=rid+1
+    echo "olcServerID: $id ldap://$REPLHOST" >>/tmp/tls.ldif
+    id=id+1
   done
-  echo "-" >>/tmp/schema_repl_db.ldif
-  # Turn on mirror mode
-  cat /opt/mirror.ldif >>/tmp/schema_repl_db.ldif
-  IFS="$OLD_IFS"
 
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl_db.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
 
-  #Syncrepl for config (schema and metadata)
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
-
-  OLD_IFS="$IFS"
-  IFS=";"
-  cat /opt/schema_repl_header.ldif | envsubst >/tmp/schema_repl.ldif
-  for REPLHOST in $REPL_HOSTS
+  IFS=","
+#Add additional schemas
+  for SCHEMA in $SCHEMAS
   do
-    export RID=`printf "%03d\n" $rid`
-    export HOST=$REPLHOST
-    cat /opt/schema_repl_data.ldif | envsubst >>/tmp/schema_repl.ldif
-    rid=rid+1
+    echo "=============================================================="
+    echo "Processing schema $SCHEMA"
+    echo "=============================================================="
+  
+    if [ -f $CONFIG_DIR/schema/$SCHEMA.ldif ]
+    then
+      ldapadd -c -H ldapi:// -Y EXTERNAL -f $CONFIG_DIR/schema/$SCHEMA.ldif
+      echo "Schema $SCHEMA is registered"
+    fi
   done
-  IFS="$OLD_IFS"
-  echo "-" >>/tmp/schema_repl.ldif
-  cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
 
+  chmod 777 -R $CONFIG_DIR/cn=config/cn=schema
 
-sleep 1
+  if [ "$MODE" != "REPLICA" ]
+  then
+  #Override search size limit to unlimited by default
+    echo "dn: olcDatabase={-1}frontend,cn=config" >/tmp/limit.ldif
+    echo "changetype: modify" >>/tmp/limit.ldif
+    echo "replace: olcSizeLimit" >>/tmp/limit.ldif
+    echo "olcSizeLimit: -1" >>/tmp/limit.ldif
+    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
 
-kill $PID
+    echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limit.ldif
+    echo "changetype: modify" >>/tmp/limit.ldif
+    echo "replace: olcSizeLimit" >>/tmp/limit.ldif
+    echo "olcSizeLimit: -1" >>/tmp/limit.ldif
+    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limit.ldif
 
-echo "Running"
+  # redefine max size
+    echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/limital.ldif
+    echo "changetype: modify" >>/tmp/limital.ldif
+    echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
+    echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
+    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
+  fi
 
-#if [ ! -z "$INITFILE" ]
-#then
-#  cat $INITFILE | slapadd -v -F $CONFIG_DIR
-#fi
+  if [ "$ENABLE_ACCESSLOG" == "1" ] 
+  then
+  # If define access log - redefine max size
+    echo "dn: olcDatabase={2}mdb,cn=config" >/tmp/limital.ldif
+    echo "changetype: modify" >>/tmp/limital.ldif
+    echo "replace: olcDbMaxSize" >>/tmp/limital.ldif
+    echo "olcDbMaxSize: $MAXSIZE" >>/tmp/limital.ldif
+    ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/limital.ldif
+  fi
+
+  #Modify ACL
+  echo "dn: olcDatabase={1}mdb,cn=config" >/tmp/access.ldif
+  echo "changetype: modify" >>/tmp/access.ldif
+  echo "replace: olcAccess" >>/tmp/access.ldif
+  IFS=";"
+  if [ ! -z "$ACL" ]
+  then
+    for ACCESS in $ACL
+    do
+      echo "olcAccess: {0}$ACCESS" >>/tmp/access.ldif
+    done
+  fi
+  if [ "$ENABLE_ACCESSLOG" == "1" ]
+  then
+    cat /opt/accesslog_acl.ldif | envsubst >/tmp/accesslog_acl.ldif
+    cat /tmp/accesslog_acl.ldif >>/tmp/access.ldif
+  fi
+
+  echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by dn.exact=uid=replicator,$LDAP_SUFFIX manage by * break" >>/tmp/access.ldif
+  ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
+
+  #Generate index
+  if [ "$MODE" != "NORMAL" ]
+  then
+    OLD_IFS=$IFS
+    IFS=";"
+    for IV in $INDEXES
+    do
+      export INDEX=$IV
+      cat /opt/index.ldif | envsubst >/tmp/index.ldif
+      ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/index.ldif
+      echo "Index created for $INDEX"
+    done
+    IFS=$OLD_IFS
+  fi
+
+  #Build directory stub
+  if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
+  then
+    export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
+    cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
+
+    export PASSWORD="$ENC_ROOT_PASSWORD"
+    export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
+    cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
+
+    cat /opt/services.ldif | envsubst >/tmp/services.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
+
+    cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+
+    # Apply replication
+    # Syncrepl for data
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
+
+    # Build servers list and rid records
+    declare -i rid
+    rid=1
+
+    OLD_IFS="$IFS"
+    IFS=";"
+    cat /opt/schema_repl_db_header.ldif | envsubst >/tmp/schema_repl_db.ldif
+    for REPLHOST in $REPL_HOSTS
+    do
+      export RID=`printf "%03d\n" $rid`
+      export HOST=$REPLHOST
+      cat /opt/schema_repl_db_data.ldif | envsubst >>/tmp/schema_repl_db.ldif
+      rid=rid+1
+    done
+    echo "-" >>/tmp/schema_repl_db.ldif
+    # Turn on mirror mode
+    cat /opt/mirror.ldif >>/tmp/schema_repl_db.ldif
+    IFS="$OLD_IFS"
+
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl_db.ldif
+
+    #Syncrepl for config (schema and metadata)
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
+
+    OLD_IFS="$IFS"
+    IFS=";"
+    cat /opt/schema_repl_header.ldif | envsubst >/tmp/schema_repl.ldif
+    for REPLHOST in $REPL_HOSTS
+    do
+      export RID=`printf "%03d\n" $rid`
+      export HOST=$REPLHOST
+      cat /opt/schema_repl_data.ldif | envsubst >>/tmp/schema_repl.ldif
+      rid=rid+1
+    done
+    IFS="$OLD_IFS"
+    echo "-" >>/tmp/schema_repl.ldif
+    cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
+  fi
+
+  sleep 1
+
+  kill $PID
+
+  echo "Running"
+
+  if [ ! -z "$INITFILE" ]
+    then
+    cat $INITFILE | slapadd -v -F $CONFIG_DIR
+  fi
+fi
 
 if [ "$REINDEX" == "1" ] && [ "$MODE" != "REPLICA" ]
 then

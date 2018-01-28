@@ -81,47 +81,6 @@ then
   # Register modules
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/modules.ldif
 
-  #Syncrepl for data
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
-
-  # Build servers list and rid records
-  declare -i rid
-  rid=1
-
-  OLD_IFS="$IFS"
-  IFS=";"
-  cat /opt/schema_repl_db_header.ldif | envsubst >/tmp/schema_repl_db.ldif
-  for REPLHOST in $REPL_HOSTS
-  do
-    export RID=`printf "%03d\n" $rid`
-    export HOST=$REPLHOST
-    cat /opt/schema_repl_db_data.ldif | envsubst >>/tmp/schema_repl_db.ldif
-    rid=rid+1
-  done
-  echo "-" >>/tmp/schema_repl_db.ldif
-  # Turn on mirror mode
-  cat /opt/mirror.ldif >>/tmp/schema_repl_db.ldif
-  IFS="$OLD_IFS"
-
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl_db.ldif
-
-  #Syncrepl for config (schema and metadata)
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
-
-  OLD_IFS="$IFS"
-  IFS=";"
-  cat /opt/schema_repl_header.ldif | envsubst >/tmp/schema_repl.ldif
-  for REPLHOST in $REPL_HOSTS
-  do
-    export RID=`printf "%03d\n" $rid`
-    export HOST=$REPLHOST
-    cat /opt/schema_repl_data.ldif | envsubst >>/tmp/schema_repl.ldif
-    rid=rid+1
-  done
-  IFS="$OLD_IFS"
-  echo "-" >>/tmp/schema_repl.ldif
-  cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
 
   if [ "$MODE" != "REPLICA" ]
     then
@@ -173,19 +132,39 @@ sleep 1
 #switch to mirror mode
 ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-if [ "$MODE" == "BOOTSTRAP" || "$MODE" == "REPLICA" ]
+if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
 then
 #Convert additional schemas
   for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
   do
-    echo "include $EXTSCHEMA" >/tmp/schemas.conf
-    echo "Converting schema $EXTSCHEMA"
-    echo 'runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"'
-    runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -f /tmp/schemas.conf -F $CONFIG_DIR"
+    EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
+    cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
+    echo "include /tmp/$EXTSCHEMA_NAME" >/tmp/schemas.conf
+    echo "Converting schema $EXTSCHEMA_NAME"
+    cat /tmp/schemas.conf
+    set +x
+    runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
+    set -x
   done
 
-  cp /opt/schemas/*.ldif $CONFIG_BASEDIR/schema/
+#  cp /opt/schemas/*.ldif $CONFIG_DIR/schema/
 fi
+
+cp -R $CONFIG_BASEDIR/schema/ $CONFIG_DIR/
+
+ls -la /tmp/
+ls -la /tmp/cn=config/cn=schema
+for A in `ls -1 /tmp/cn=config/cn=schema`
+do
+  echo $A
+  P=`echo $A | sed 's~cn={0}\(.*\)~\1~ig'`
+  cat /tmp/cn=config/cn=schema/$A | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/\1,cn=schema,cn=config/' >$CONFIG_DIR/schema/$P
+#  echo "================="
+#  echo $P
+#  cat $CONFIG_BASEDIR/schema/$P
+#  ldapadd -Y EXTERNAL -H ldapi:/// -f $CONFIG_BASEDIR/schema/$P
+done
+cp -R /tmp/cn=config $CONFIG_DIR/
 
 #Register modules
 
@@ -202,39 +181,50 @@ done
 
 ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/tls.ldif
 
+echo "DIR"
+ls -la $CONFIG_DIR/schema
+echo "BASEDIR"
+ls -la $CONFIG_BASEDIR/schema
 
 IFS=","
 #Add additional schemas
+#if [ "$MODE" != "REPLICA" ]
+#then
 for SCHEMA in $SCHEMAS
 do
   echo "=============================================================="
   echo "Processing schema $SCHEMA"
   echo "=============================================================="
   
-  if [ -f $CONFIG_BASEDIR/schema/$SCHEMA.ldif ]
+  if [ -f $CONFIG_DIR/schema/$SCHEMA.ldif ]
   then
-    ldapadd -c -H ldapi:// -Y EXTERNAL -f $CONFIG_BASEDIR/schema/$SCHEMA.ldif
+    cat $CONFIG_DIR/schema/$SCHEMA.ldif
+    ldapadd -c -H ldapi:// -Y EXTERNAL -f $CONFIG_DIR/schema/$SCHEMA.ldif
     echo "Schema $SCHEMA is registered"
   fi
 done
+#fi
+
+chmod 777 -R $CONFIG_DIR/cn=config/cn=schema
 
 #Build directory stub
-if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
-then
-  export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
-  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
+#if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
+#then
+#  export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
+#  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
+#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
 
-  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
-  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
+#  export PASSWORD="$ENC_ROOT_PASSWORD"
+#  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
+#  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
+#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
 
-  cat /opt/services.ldif | envsubst >/tmp/services.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
+#  cat /opt/services.ldif | envsubst >/tmp/services.ldif
+#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
 
-  cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
-fi
+#  cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
+#  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
+#fi
 
 if [ "$MODE" != "REPLICA" ]
 then
@@ -290,8 +280,8 @@ echo "olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=exte
 ldapadd -H ldapi:// -Y EXTERNAL -f /tmp/access.ldif
 
 #Generate index
-if [ "$MODE" != "REPLICA" ]
-then
+#if [ "$MODE" != "REPLICA" ]
+#then
   OLD_IFS=$IFS
   IFS=";"
   for IV in $INDEXES
@@ -302,18 +292,19 @@ then
     echo "Index created for $INDEX"
   done
   IFS=$OLD_IFS
-fi
+#fi
 
-if [ "$MODE" == "BOOTSTRAP" ]
+#Build directory stub
+if [ "$MODE" == "REPLICA" ] || [ "$MODE" == "BOOTSTRAP" ]
 then
   export FPDOMAIN="$(echo $LDAP_SUFFIX | sed 's/dc=\([^,]*\).*/\1/')"
-  cat /opt/domain.ldif | envsubst >/tmp/domain.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain.ldif
+  cat /opt/domain.ldif | envsubst >/tmp/domain0.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/domain0.ldif
 
   export PASSWORD="$ENC_ROOT_PASSWORD"
-  export FROOTDN="$(echo $ROOT_DN | sed 's/dc=\([^,]*\).*/\1/')"
-  cat /opt/admin.ldif | envsubst >/tmp/admin.ldif
-  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin.ldif
+  export FROOTDN="$(echo $ROOT_DN | sed 's/cn=\([^,]*\).*/\1/')"
+  cat /opt/admin.ldif | envsubst >/tmp/admin0.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/admin0.ldif
 
   cat /opt/services.ldif | envsubst >/tmp/services.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/services.ldif
@@ -321,6 +312,51 @@ then
   cat /opt/replicator.ldif | envsubst >/tmp/replicator.ldif
   ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/replicator.ldif
 fi
+
+
+# Apply replication
+  #Syncrepl for data
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
+
+  # Build servers list and rid records
+  declare -i rid
+  rid=1
+
+  OLD_IFS="$IFS"
+  IFS=";"
+  cat /opt/schema_repl_db_header.ldif | envsubst >/tmp/schema_repl_db.ldif
+  for REPLHOST in $REPL_HOSTS
+  do
+    export RID=`printf "%03d\n" $rid`
+    export HOST=$REPLHOST
+    cat /opt/schema_repl_db_data.ldif | envsubst >>/tmp/schema_repl_db.ldif
+    rid=rid+1
+  done
+  echo "-" >>/tmp/schema_repl_db.ldif
+  # Turn on mirror mode
+  cat /opt/mirror.ldif >>/tmp/schema_repl_db.ldif
+  IFS="$OLD_IFS"
+
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl_db.ldif
+
+  #Syncrepl for config (schema and metadata)
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
+
+  OLD_IFS="$IFS"
+  IFS=";"
+  cat /opt/schema_repl_header.ldif | envsubst >/tmp/schema_repl.ldif
+  for REPLHOST in $REPL_HOSTS
+  do
+    export RID=`printf "%03d\n" $rid`
+    export HOST=$REPLHOST
+    cat /opt/schema_repl_data.ldif | envsubst >>/tmp/schema_repl.ldif
+    rid=rid+1
+  done
+  IFS="$OLD_IFS"
+  echo "-" >>/tmp/schema_repl.ldif
+  cat /opt/mirror.ldif >>/tmp/schema_repl.ldif
+  ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl.ldif
+
 
 sleep 1
 

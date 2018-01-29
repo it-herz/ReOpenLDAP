@@ -43,8 +43,6 @@ WORKDIR /opt/reopenldap
 RUN mkdir -p /opt/reopenldap/var/run/slapdp /opt/reopenldap/var/reopenldap-data && \
     chown ldap:ldap -R /opt/reopenldap/var
 
-RUN apt-get update && apt-get install -y mc
-
 ADD ldif/*.ldif /opt/
 
 ADD entrypoint.sh /opt

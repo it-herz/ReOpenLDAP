@@ -1,6 +1,7 @@
-dn: olcOverlay=syncprov{0},olcDatabase={0}config,cn=config
+dn: olcOverlay=syncprov,olcDatabase={0}config,cn=config
 objectClass: olcSyncProvConfig
 objectClass: olcOverlayConfig
 objectClass: olcConfig
 objectClass: top
-olcOverlay: syncprov{0}
+olcOverlay: syncprov
+

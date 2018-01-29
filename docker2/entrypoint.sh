@@ -297,7 +297,11 @@ then
 
     # Apply replication
     # Syncrepl for data
-    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
+    ls -1 $CONFIG_DIR/cn=config/olcDatabase={0}config/*syncprov*
+    if [ $? -ne 0 ]
+    then
+      ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprov.ldif
+    fi
 
     # Build servers list and rid records
     declare -i rid
@@ -321,7 +325,11 @@ then
     ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/schema_repl_db.ldif
 
     #Syncrepl for config (schema and metadata)
-    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
+    ls -1 $CONFIG_DIR/cn=config/olcDatabase={1}mdb/*syncprov*
+    if [ $? -ne 0 ]
+    then
+      ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/syncprovdb.ldif
+    fi
 
     OLD_IFS="$IFS"
     IFS=";"

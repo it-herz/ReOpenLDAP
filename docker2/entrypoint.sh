@@ -133,32 +133,15 @@ then
   #switch to mirror mode
   ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/mirror.ldif
 
-  if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
-  then
-#Convert additional schemas
-    for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
-    do
-      EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
-      cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
-      echo "include /tmp/$EXTSCHEMA_NAME" >/tmp/schemas.conf
-      echo "Converting schema $EXTSCHEMA_NAME"
-      cat /tmp/schemas.conf
-      runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
-    done
-
-  fi
-
+  #copy distrubution schemas and ldif
   cp -R $CONFIG_BASEDIR/schema/ $CONFIG_DIR/
 
-  for A in `ls -1 /tmp/cn=config/cn=schema`
-  do
-    P=`echo $A | sed 's~cn={0}\(.*\)~\1~ig'`
-    cat /tmp/cn=config/cn=schema/$A | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/\1,cn=schema,cn=config/' >$CONFIG_DIR/schema/$P
-  done
-  cp -R /tmp/cn=config/cn=schema/*.ldif $CONFIG_DIR/cn=config/cn=schema
+  #copy runtime ldifs
+  cp -R /opt/schemas/*.ldif $CONFIG_DIR/schema/
 
   #Register modules
 
+  OLDIFS=$IFS
   #Add TLS configuration
   cat /opt/tls.ldif | envsubst >/tmp/tls.ldif
   IFS=";"
@@ -174,6 +157,41 @@ then
 
   IFS=","
 #Add additional schemas
+  echo "include $CONFIG_DIR/schema/core.schema" >/tmp/default.conf
+
+#Get default schema pack
+  for SCHEMA in $SCHEMAS
+  do
+    if [ -f $CONFIG_DIR/schema/$SCHEMA.ldif ] && [ -f $CONFIG_DIR/schema/$SCHEMA.schema ]
+    then
+      echo "include $CONFIG_DIR/schema/$SCHEMA.schema" >>/tmp/default.conf
+    fi
+  done
+  IFS=$OLDIFS
+
+  if [ "$MODE" == "BOOTSTRAP" ] || [ "$MODE" == "REPLICA" ]
+  then
+#Convert additional schemas
+    for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
+    do
+      EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
+      echo $EXTSCHEMA_NAME
+      cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
+      cp /tmp/default.conf /tmp/schemas.conf
+      echo "include /tmp/$EXTSCHEMA_NAME" >>/tmp/schemas.conf
+      echo "Converting schema $EXTSCHEMA_NAME"
+      EXTSCHEMA_NAME=`echo $EXTSCHEMA_NAME | sed -s 's/\.schema/\.ldif/ig'`
+      runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
+      P=${EXTSCHEMA_NAME}
+      FILENAME=`ls -1 /tmp/cn=config/cn=schema | grep "}${EXTSCHEMA_NAME}"`
+      echo $FILENAME
+
+      cat /tmp/cn=config/cn=schema/$FILENAME | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/dn:\1,cn=schema,cn=config/' | sed 's/dn: cn={[[:digit:]]*}/dn: cn=/ig' | sed 's/cn: {[[:digit:]]*}/cn: /ig' >$CONFIG_DIR/schema/$P
+    done
+   fi
+   IFS=","
+
+#apply schemas
   for SCHEMA in $SCHEMAS
   do
     echo "=============================================================="
@@ -186,6 +204,7 @@ then
       echo "Schema $SCHEMA is registered"
     fi
   done
+  IFS=$OLDIFS
 
   chmod 777 -R $CONFIG_DIR/cn=config/cn=schema
 

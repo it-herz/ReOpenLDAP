@@ -3,4 +3,4 @@ objectClass: olcSyncProvConfig
 objectClass: olcOverlayConfig
 objectClass: olcConfig
 objectClass: top
-olcOverlay: syncprov{
+olcOverlay: syncprov

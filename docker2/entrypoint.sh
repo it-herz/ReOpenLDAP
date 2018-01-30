@@ -96,19 +96,20 @@ then
     #Audit log
     ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/audit.ldif
 
-    if [ "$ENABLE_ACCESSLOG" == "1" ]
-    then
-      cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
-      ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
-      ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
-    fi
+  fi
 
-    if [ "$ENABLE_CACHE" == "1" ]
-    then
-    #cache
-      ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
-      ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
-    fi
+  if [ "$ENABLE_ACCESSLOG" == "1" ]
+  then
+    cat /opt/accesslogdb.ldif | envsubst >/tmp/accesslogdb.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /tmp/accesslogdb.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/accesslog.ldif
+  fi
+
+  if [ "$ENABLE_CACHE" == "1" ]
+  then
+  #cache
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcache.ldif
+    ldapadd -H ldapi:/// -Y EXTERNAL -f /opt/pcachedb.ldif
   fi
 
   if [ "$ENABLE_MONITOR" == "1" ]

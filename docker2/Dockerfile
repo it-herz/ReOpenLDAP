@@ -31,7 +31,7 @@ RUN apt-get update -qq && apt-get install -yqq --no-install-recommends gettext-b
     cd /opt/reopenldap.source && git checkout stable/1.1 && cp /opt/ordering.patch servers/slapd/ && cd servers/slapd && patch -p0 <ordering.patch && cd ../.. && ./bootstrap.sh && \
     ./configure --with-tls=gnutls --enable-slapi --enable-ipv6=no --enable-experimental=no --enable-local --enable-contrib=yes --enable-dynacl=yes --enable-aci=yes --enable-spasswd=yes --enable-rewrite=yes --enable-mdb=yes --enable-accesslog=yes --enable-auditlog=yes --enable-constraint=yes --enable-dds=yes --enable-deref=yes --enable-memberof=yes --enable-ppolicy=yes --enable-pcache=yes --enable-refint=yes --enable-rwm=yes --enable-seqmod=yes --enable-sssvlv=yes --enable-syncprov=yes --enable-unique=yes --enable-valsort=yes && \
     make -j ${NPROC} && make install && cd /opt/reopenldap && \
-    rm -rf /opt/reopenldap.source &&\
+    rm -rf /opt/reopenldap.source && \
     apt-get remove -qq -y --purge automake build-essential libssl-dev libsasl2-dev git \
     groff imagemagick cpp gcc cpp libtool libmagic1 && \
     apt-get autoremove -y -qq --purge && apt-get clean && chown ldap:ldap -R /opt/reopenldap && apt-get purge -y libldap*

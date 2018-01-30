@@ -175,7 +175,6 @@ then
     for EXTSCHEMA in $(ls -1 /opt/schemas/*.schema)
     do
       EXTSCHEMA_NAME=`echo $EXTSCHEMA | sed 's~.*/[[:digit:]]*\-\(.*\)~\1~ig'`
-      echo $EXTSCHEMA_NAME
       cp $EXTSCHEMA /tmp/$EXTSCHEMA_NAME
       cp /tmp/default.conf /tmp/schemas.conf
       echo "include /tmp/$EXTSCHEMA_NAME" >>/tmp/schemas.conf
@@ -184,12 +183,11 @@ then
       runuser -l ldap -c "/opt/reopenldap/sbin/slaptest -v -f /tmp/schemas.conf -F /tmp"
       P=${EXTSCHEMA_NAME}
       FILENAME=`ls -1 /tmp/cn=config/cn=schema | grep "}${EXTSCHEMA_NAME}"`
-      echo $FILENAME
 
       cat /tmp/cn=config/cn=schema/$FILENAME | grep -v entryUUID | grep -v entryCSN | grep -v creatorsName | grep -v createTimestamp | grep -v modifiersName | grep -v modifyTimestamp | grep -v structuralObjectClass | sed 's/dn:\(.*\)/dn:\1,cn=schema,cn=config/' | sed 's/dn: cn={[[:digit:]]*}/dn: cn=/ig' | sed 's/cn: {[[:digit:]]*}/cn: /ig' >$CONFIG_DIR/schema/$P
     done
-   fi
-   IFS=","
+  fi
+  IFS=","
 
 #apply schemas
   for SCHEMA in $SCHEMAS
@@ -352,11 +350,11 @@ then
   kill $PID
 
   echo "Running"
+fi
 
-  if [ ! -z "$INITFILE" ]
-    then
-    cat $INITFILE | slapadd -v -F $CONFIG_DIR
-  fi
+if [ ! -z "$INITFILE" ]
+then
+  cat $INITFILE | slapadd -v -F $CONFIG_DIR
 fi
 
 if [ "$REINDEX" == "1" ] && [ "$MODE" != "REPLICA" ]

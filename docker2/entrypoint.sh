@@ -355,7 +355,7 @@ fi
 
 if [ ! -z "$INITFILE" ]
 then
-  cat $INITFILE | slapadd -v -F $CONFIG_DIR
+  cat $INITFILE | slapadd -c -v -F $CONFIG_DIR
 fi
 
 if [ "$REINDEX" == "1" ] && [ "$MODE" != "REPLICA" ]

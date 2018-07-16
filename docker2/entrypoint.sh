@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define environment
-ulimit -n 2048
+ulimit -n 131072
 mkdir -p /home/ldap
 chown -R ldap:ldap /home/ldap
 

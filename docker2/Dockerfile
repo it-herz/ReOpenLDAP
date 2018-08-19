@@ -25,11 +25,11 @@ RUN apt-get -y update \
 ADD *.patch /opt
 
 RUN apt-get update -qq && apt-get install -yqq --no-install-recommends gettext-base \
-    git automake uuid-dev bc libelf-dev pkg-config libgnutls30 libgnutlsxx28 libgnutls28-dev libsasl2-dev libdb5.3-dev strace libelf-dev libbfd-dev gdb \
+    git automake uuid-dev bc libelf-dev pkg-config libssl-dev libsasl2-dev libdb5.3-dev strace libelf-dev libbfd-dev gdb \
     groff file libltdl-dev libltdl7 libmagic1 libtool libkrb5-dev man ca-certificates libperl-dev libsodium-dev && \
     git clone https://github.com/ReOpen/ReOpenLDAP.git /opt/reopenldap.source && \
     cd /opt/reopenldap.source && git checkout v1.1.9 && cp /opt/ordering.patch servers/slapd/ && cd servers/slapd && patch -p0 <ordering.patch && cd ../.. && ./bootstrap.sh && \
-    ./configure --with-tls=gnutls --enable-slapi --enable-ipv6=no --enable-experimental=no --enable-local --enable-contrib=yes --enable-dynacl=yes --enable-aci=yes --enable-spasswd=yes --enable-rewrite=yes --enable-mdb=yes --enable-accesslog=yes --enable-auditlog=yes --enable-constraint=yes --enable-dds=yes --enable-deref=yes --enable-memberof=yes --enable-ppolicy=yes --enable-pcache=yes --enable-refint=yes --enable-rwm=yes --enable-seqmod=yes --enable-sssvlv=yes --enable-syncprov=yes --enable-unique=yes --enable-valsort=yes && \
+    ./configure --with-tls=openssl --enable-slapi --enable-ipv6=no --enable-experimental=no --enable-local --enable-contrib=yes --enable-dynacl=yes --enable-aci=yes --enable-spasswd=yes --enable-rewrite=yes --enable-mdb=yes --enable-accesslog=yes --enable-auditlog=yes --enable-constraint=yes --enable-dds=yes --enable-deref=yes --enable-memberof=yes --enable-ppolicy=yes --enable-pcache=yes --enable-refint=yes --enable-rwm=yes --enable-seqmod=yes --enable-sssvlv=yes --enable-syncprov=yes --enable-unique=yes --enable-valsort=yes && \
     make -j ${NPROC} && make install && cd /opt/reopenldap && \
     rm -rf /opt/reopenldap.source && \
     apt-get remove -qq -y --purge automake build-essential libssl-dev libsasl2-dev git \
